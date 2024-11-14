@@ -64,7 +64,7 @@ func LabCanselHandler(lm *LabsManager) Handler {
 
 		log.Infof("[ %s ] запрос на удаление задачи", uuid)
 
-		err := lm.canselLabTsk(uuid)
+		err := lm.canselLabTask(uuid)
 		if err != nil {
 			return err
 		}
