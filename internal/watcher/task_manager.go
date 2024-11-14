@@ -1,13 +1,24 @@
 package watcher
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	log "github.com/sirupsen/logrus"
+	"io/ioutil"
+	"net/http"
+	"os"
 	"sync"
 	"time"
 )
+
+type RequestLab struct {
+	Name         string `json:"name"`
+	UUID         string `json:"uuid"`
+	DeploySecret string `json:"deploy_secret,omitempty"`
+}
 
 type LabsManager struct {
 	mu   sync.Mutex
@@ -56,7 +67,7 @@ func (lm *LabsManager) createLabTsk(uuid string, data string) error {
 	return nil
 }
 
-func (lm *LabsManager) canselLabTsk(uuid string) error {
+func (lm *LabsManager) canselLabTask(uuid string) error {
 	lm.mu.Lock()
 	defer lm.mu.Unlock()
 
@@ -72,20 +83,63 @@ func (lm *LabsManager) canselLabTsk(uuid string) error {
 	return nil
 }
 
+func (lm *LabsManager) sendRequest(uuid string) {
+	deployServiceURL := os.Getenv("DEPLOY_SERVICE_URL")
+	if deployServiceURL == "" {
+		deployServiceURL = "http://deploy-service:8001"
+	}
+
+	deployServiceURL = fmt.Sprintf("%s/delete", deployServiceURL)
+
+	requestBody := RequestLab{
+		Name:         uuid,
+		UUID:         uuid,
+		DeploySecret: os.Getenv("DEPLOY_SECRET"),
+	}
+
+	data, err := json.Marshal(requestBody)
+	if err != nil {
+		log.Errorf("Ошибка формирования JSON: %e", err)
+	}
+
+	req, err := http.NewRequest("DELETE", deployServiceURL, bytes.NewBuffer(data))
+	if err != nil {
+		log.Errorf("Ошибка формирования запроса к deploy-service: %e", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Errorf("Ошибка выполнения запроса к deploy-service: %e", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := ioutil.ReadAll(resp.Body)
+
+	if resp.StatusCode != 200 {
+		log.Errorf("Ошибка удаления лабораторной на стороне deploy-service: %s", string(body))
+	}
+
+	log.Infof("Лабораторная удалена, ответ deploy-service: %s", string(body))
+}
+
 func (lm *LabsManager) runTask(ctx context.Context, uuid string, targetTime time.Time) {
 	delay := time.Until(targetTime)
 
 	if delay <= 0 {
 		log.Warnf("[ %s ] время выполнения задачи уже прошло, запускаю удаление", uuid)
-		// TODO: запрос на ручу удаления deploy-service
-		return
+		lm.canselLabTask(uuid)
+		lm.sendRequest(uuid)
 	}
 
 	select {
 	case <-time.After(delay):
 		log.Infof("[ %s ] передача задачи на удаление", uuid)
-		// TODO: доделать запрос на ручку удаления deploy-service
 	case <-ctx.Done():
 		log.Infof("[ %s ] принудительное завершение", uuid)
 	}
+
+	lm.canselLabTask(uuid)
+	lm.sendRequest(uuid)
 }
