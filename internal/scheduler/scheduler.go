@@ -18,6 +18,15 @@ type JSONResponse struct {
 	Message string `json:"message"`
 }
 
+type LabAddRequest struct {
+	UUID string `json:"uuid"`
+	Date string `json:"date"`
+}
+
+type LabDeleteRequest struct {
+	UUID string `json:"uuid"`
+}
+
 // ServeHTTP базовый метод обработки HTTP запроса
 func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err := h(w, r); err != nil {
@@ -33,8 +42,14 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // LabAddHandler хэндлер для добавления отложенной задачи
 func LabAddHandler(lm *LabsManager) Handler {
 	return func(w http.ResponseWriter, r *http.Request) error {
-		uuid := r.URL.Query().Get("uuid")
-		date := r.URL.Query().Get("date")
+		var req LabAddRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Некорректный формат данных", http.StatusBadRequest)
+			return err
+		}
+
+		uuid := req.UUID
+		date := req.Date
 
 		if uuid == "" || date == "" {
 			return errors.New("требуются параметры uuid и date")
@@ -56,7 +71,13 @@ func LabAddHandler(lm *LabsManager) Handler {
 // LabCanselHandler хэндлер для удаления лабы из отложенной задачи
 func LabCanselHandler(lm *LabsManager) Handler {
 	return func(w http.ResponseWriter, r *http.Request) error {
-		uuid := r.URL.Query().Get("uuid")
+		var req LabAddRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Некорректный формат данных", http.StatusBadRequest)
+			return err
+		}
+
+		uuid := req.UUID
 
 		if uuid == "" {
 			return errors.New("требуются параметры uuid и date")
@@ -66,10 +87,8 @@ func LabCanselHandler(lm *LabsManager) Handler {
 
 		cansel, ok := lm.labs[uuid]
 		if !ok {
-			json.NewEncoder(w).Encode(JSONResponse{
-				Success: false,
-				Message: fmt.Sprintf("задачи %s не существует", uuid),
-			})
+			message := fmt.Sprintf("задачи %s не существует", uuid)
+			return errors.New(message)
 		}
 
 		// вызов отмены задачи
@@ -91,15 +110,15 @@ func StartSchedulerServer() {
 
 	r := chi.NewRouter()
 	r.Route("/api/v1", func(r chi.Router) {
-		r.Method("GET", "/add", LabAddHandler(labManger))
-		r.Method("GET", "/cansel", LabCanselHandler(labManger))
+		r.Method("POST", "/add", LabAddHandler(labManger))
+		r.Method("POST", "/cansel", LabCanselHandler(labManger))
 	})
 
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8002"
 	}
-	addr := fmt.Sprintf("127.0.0.1:%s", port)
+	addr := fmt.Sprintf(":%s", port)
 
 	log.Infof("Запуск API сервиса %s", addr)
 

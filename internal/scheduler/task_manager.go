@@ -16,9 +16,10 @@ import (
 
 // RequestLab структура body запроса DELETE к deploy-service
 type RequestLab struct {
-	Name         string `json:"name"`
-	UUID         string `json:"uuid"`
-	DeploySecret string `json:"deploy_secret,omitempty"`
+	Name           string `json:"name"`
+	UUID           string `json:"uuid"`
+	ExpiredSeconds string `json:"expired_seconds"`
+	DeploySecret   string `json:"deploy_secret,omitempty"`
 }
 
 // LabsManager планировщик, хранит глобальный мьютекс и мапу отложенных задач, переданных на удаление
@@ -33,7 +34,10 @@ func calculateTime(data string) (time.Time, error) {
 	if err != nil {
 		return time.Time{}, fmt.Errorf("не удалось загрузить часовой пояс: %v", err)
 	}
-	targetTime, err := time.Parse(time.RFC3339Nano, data)
+
+	layout := "2006-01-02 15:04:05.999999-07:00"
+	targetTime, err := time.Parse(layout, data)
+
 	if err != nil {
 		return time.Time{}, fmt.Errorf("ошибка парсинга времени: %w", err)
 	}
@@ -79,9 +83,9 @@ func (lm *LabsManager) deleteLabTask(uuid string) {
 
 	if _, ok := lm.labs[uuid]; ok {
 		delete(lm.labs, uuid)
-		log.Infof("[ %s ] задача удалена", uuid)
+		log.Infof("[ %s ] задача удалена из LabManager", uuid)
 	} else {
-		log.Warnf("[ %s ] задача не найдена и не удалена", uuid)
+		log.Warnf("[ %s ] задача не найдена и не удалена из LabManager", uuid)
 	}
 }
 
@@ -92,12 +96,13 @@ func (lm *LabsManager) sendRequest(uuid string) {
 		deployServiceURL = "http://deploy-service:8001"
 	}
 
-	deployServiceURL = fmt.Sprintf("%s/delete", deployServiceURL)
+	deployServiceURL = fmt.Sprintf("%s/api/v1/lab/delete", deployServiceURL)
 
 	requestBody := RequestLab{
-		Name:         uuid,
-		UUID:         uuid,
-		DeploySecret: os.Getenv("DEPLOY_SECRET"),
+		Name:           uuid,
+		UUID:           uuid,
+		ExpiredSeconds: "10800",
+		DeploySecret:   os.Getenv("DEPLOY_SECRET"),
 	}
 
 	data, err := json.Marshal(requestBody)
@@ -140,7 +145,13 @@ func (lm *LabsManager) runTask(ctx context.Context, uuid string, targetTime time
 
 	if delay <= 0 {
 		log.Warnf("[ %s ] время выполнения задачи уже прошло, запускаю удаление", uuid)
-		lm.stopLabTask(uuid)
+		cansel, ok := lm.labs[uuid]
+		if !ok {
+			log.Errorf("[ %s ] ошибка получения контекста удаления", uuid)
+			return
+
+		}
+		cansel()
 	}
 
 	select {
