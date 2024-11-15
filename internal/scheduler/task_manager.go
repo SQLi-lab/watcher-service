@@ -73,7 +73,7 @@ func (lm *LabsManager) createLabTsk(uuid string, data string) error {
 }
 
 // canselLabTask метод удаления задачи из планировщика
-func (lm *LabsManager) canselLabTask(uuid string) {
+func (lm *LabsManager) deleteLabTask(uuid string) {
 	lm.mu.Lock()
 	defer lm.mu.Unlock()
 
@@ -130,7 +130,7 @@ func (lm *LabsManager) sendRequest(uuid string) {
 // stopLabTask метод вызыватся при событии удалении задачи.
 // Удаляет из планировщика и посылает запрос к deploy-service на удаление
 func (lm *LabsManager) stopLabTask(uuid string) {
-	lm.canselLabTask(uuid)
+	lm.deleteLabTask(uuid)
 	lm.sendRequest(uuid)
 }
 
