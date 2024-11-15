@@ -87,6 +87,8 @@ func LabCanselHandler(lm *LabsManager) Handler {
 func StartSchedulerServer() {
 	labManger := newLabManager()
 
+	// TODO: запрос к бд на дамп активных лаб в labManager
+
 	r := chi.NewRouter()
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Method("GET", "/add", LabAddHandler(labManger))
