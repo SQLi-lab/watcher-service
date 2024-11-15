@@ -11,6 +11,7 @@ import (
 	"watcher/internal/postgres"
 )
 
+// StartChecker функция запускает запуск проверки лабораторных
 func StartChecker() {
 	var db = postgres.InitDatabase()
 
@@ -34,6 +35,7 @@ func StartChecker() {
 	}
 }
 
+// checkerJob горутина проверки лабораторных
 func checkerJob(db *sql.DB) {
 	log.Info("Запуск сервиса checker")
 
@@ -84,6 +86,7 @@ func checkerJob(db *sql.DB) {
 
 	wg.Add(len(resultPostgres.containersUUID))
 
+	// проверка всех контейнеров в горутинах
 	for _, containerUUID := range resultPostgres.containersUUID {
 		go func(uuid string) {
 			defer wg.Done()
