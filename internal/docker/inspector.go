@@ -2,22 +2,12 @@ package docker
 
 import (
 	"context"
-	"encoding/json"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	log "github.com/sirupsen/logrus"
 )
 
-type Container struct {
-	Name   string `json:"name"`
-	Status string `json:"status"`
-}
-
-type Containers struct {
-	Containers []Container `json:"containers"`
-}
-
-func GetDockerContainers() ([]byte, error) {
+func GetDockerContainers() (map[string]string, error) {
 	log.Info("Получение статусов контейнеров в системе")
 
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
@@ -32,20 +22,11 @@ func GetDockerContainers() ([]byte, error) {
 		return nil, err
 	}
 
-	data := Containers{}
+	data := make(map[string]string)
 	for _, containerObj := range containers {
-		data.Containers = append(data.Containers, Container{
-			Name:   containerObj.Names[0][1:],
-			Status: containerObj.State,
-		})
+		data[containerObj.Names[0][1:]] = containerObj.State
 	}
 
-	jsonData, err := json.Marshal(data)
-	if err != nil {
-		log.Errorf("Ошибка формирования JSON данных о контейнера: %v", err)
-		return nil, err
-	}
-
-	return jsonData, nil
+	return data, nil
 
 }

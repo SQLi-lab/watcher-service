@@ -42,11 +42,10 @@ func checkerJob(db *sql.DB) {
 		containersUUID []string
 		err            error
 	})
-
 	// канал для горутины инспектора контенеров
 	channelDocker := make(chan struct {
-		containersJson []byte
-		err            error
+		containersMap map[string]string
+		err           error
 	})
 
 	wg := sync.WaitGroup{}
@@ -66,33 +65,45 @@ func checkerJob(db *sql.DB) {
 		defer wg.Done()
 		data, dockerErr := docker.GetDockerContainers()
 		channelDocker <- struct {
-			containersJson []byte
-			err            error
+			containersMap map[string]string
+			err           error
 		}{data, dockerErr}
 	}()
 
 	// собираем полученные данные из горутин
-	resultPostgres := <-channelPostgres
-	if resultPostgres.err != nil {
-		return
-	}
-
-	resultDocker := <-channelDocker
-	if resultDocker.err != nil {
+	resultPostgres, resultDocker := <-channelPostgres, <-channelDocker
+	if resultPostgres.err != nil || resultDocker.err != nil {
 		return
 	}
 
 	wg.Wait()
 	log.Infof("Контейнеры получены от Docker")
-	log.Debugf("Получены контейнеры: %v", string(resultDocker.containersJson))
+	log.Debugf("Получены контейнеры: %v", resultDocker.containersMap)
 	log.Infof("Список активных контейнеров получен")
 	log.Debugf("Получены активные контейнеры: %v", resultPostgres.containersUUID)
 
-	// TODO: проверка, что все активные лабы запущены и работают
+	wg.Add(len(resultPostgres.containersUUID))
 
-	//err := postgres.SetErrorStatus(db, "318d020e-ee62-4235-b167-4587dcfc788b")
-	//if err != nil {
-	//	return
-	//}
-	//log.Warnf("Статус контейнера с ошибкой измененн")
+	for _, containerUUID := range resultPostgres.containersUUID {
+		go func(uuid string) {
+			defer wg.Done()
+
+			status := resultDocker.containersMap[uuid]
+			if status == "running" {
+				return
+			}
+
+			//err := postgres.SetErrorStatus(db, "318d020e-ee62-4235-b167-4587dcfc788b")
+			//if err != nil {
+			//	return
+			//}
+			//log.Warnf("Статус контейнера с ошибкой измененн")
+
+			// TODO: запрос к API на удаление из LabManager
+		}(containerUUID)
+	}
+
+	wg.Wait()
+
+	log.Infof("Проверка контейнеров завершена")
 }
