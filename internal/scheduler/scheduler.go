@@ -1,4 +1,4 @@
-package watcher
+package scheduler
 
 import (
 	"encoding/json"
@@ -77,8 +77,8 @@ func LabCanselHandler(lm *LabsManager) Handler {
 	}
 }
 
-// startSchedulerServer функция запуска API сервера
-func startSchedulerServer() {
+// StartSchedulerServer функция запуска API сервера
+func StartSchedulerServer() {
 	labManger := newLabManager()
 
 	r := chi.NewRouter()
