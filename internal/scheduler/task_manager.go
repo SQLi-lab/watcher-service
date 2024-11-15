@@ -106,19 +106,19 @@ func (lm *LabsManager) sendRequest(uuid string) {
 
 	data, err := json.Marshal(requestBody)
 	if err != nil {
-		log.Errorf("Ошибка формирования JSON: %e", err)
+		log.Errorf("Ошибка формирования JSON: %v", err)
 	}
 
 	req, err := http.NewRequest("DELETE", deployServiceURL, bytes.NewBuffer(data))
 	if err != nil {
-		log.Errorf("Ошибка формирования запроса к deploy-service: %e", err)
+		log.Errorf("Ошибка формирования запроса к deploy-service: %v", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 
 	client := http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Errorf("Ошибка выполнения запроса к deploy-service: %e", err)
+		log.Errorf("Ошибка выполнения запроса к deploy-service: %v", err)
 	}
 	defer resp.Body.Close()
 

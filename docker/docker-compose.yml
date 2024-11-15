@@ -1,0 +1,8 @@
+services:
+  watcher:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    # TODO: доделать
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock

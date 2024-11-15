@@ -24,3 +24,9 @@
 - `DEPLOY_SERVICE_URL`: адрес deploy-service; default http://deploy-service:8001
 - `DEPLOY_SECRET`: секрет для общения с deploy-service
 - `CHECKER_TIMEOUT`: тамаут работы сервиса checker в секундах; default `60`
+- `LOG_LEVEL`: уровень логирования; default `info` # debug
+- `POSTGRES_HOST`: хост БД postgres; default `localhost`
+- `POSTGRES_PORT`: порт БД postgres; default `5432`
+- `POSTGRES_DB`: имя БД postgres; default `sqli_lab`
+- `POSTGRES_USER`: имя пользователя БД postgres; default `sqli_user`
+- `POSTGRES_PASS`: пароль пользователя БД postgres; default `sqli_pass`
