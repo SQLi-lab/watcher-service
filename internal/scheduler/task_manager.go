@@ -73,20 +73,16 @@ func (lm *LabsManager) createLabTsk(uuid string, data string) error {
 }
 
 // canselLabTask метод удаления задачи из планировщика
-func (lm *LabsManager) canselLabTask(uuid string) error {
+func (lm *LabsManager) canselLabTask(uuid string) {
 	lm.mu.Lock()
 	defer lm.mu.Unlock()
 
-	if cancel, ok := lm.labs[uuid]; ok {
-		cancel()
+	if _, ok := lm.labs[uuid]; ok {
 		delete(lm.labs, uuid)
 		log.Infof("[ %s ] задача удалена", uuid)
 	} else {
 		log.Warnf("[ %s ] задача не найдена и не удалена", uuid)
-		return errors.New("задача не найдена")
 	}
-
-	return nil
 }
 
 // sendRequest метод отправки запроса на deploy-service для удаления лабы

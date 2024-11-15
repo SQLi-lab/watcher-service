@@ -64,10 +64,16 @@ func LabCanselHandler(lm *LabsManager) Handler {
 
 		log.Infof("[ %s ] запрос на удаление задачи", uuid)
 
-		err := lm.canselLabTask(uuid)
-		if err != nil {
-			return err
+		cansel, ok := lm.labs[uuid]
+		if !ok {
+			json.NewEncoder(w).Encode(JSONResponse{
+				Success: false,
+				Message: fmt.Sprintf("задачи %s не существует", uuid),
+			})
 		}
+
+		// вызов отмены задачи
+		cansel()
 
 		json.NewEncoder(w).Encode(JSONResponse{
 			Success: true,
