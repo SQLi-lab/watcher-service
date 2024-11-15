@@ -150,9 +150,10 @@ func (lm *LabsManager) runTask(ctx context.Context, uuid string, targetTime time
 	select {
 	case <-time.After(delay):
 		log.Infof("[ %s ] передача задачи на удаление", uuid)
+		lm.stopLabTask(uuid)
+
 	case <-ctx.Done():
 		log.Infof("[ %s ] принудительное завершение", uuid)
+		lm.stopLabTask(uuid)
 	}
-
-	lm.stopLabTask(uuid)
 }

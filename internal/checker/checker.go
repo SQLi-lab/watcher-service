@@ -2,7 +2,9 @@ package checker
 
 import (
 	"database/sql"
+	"errors"
 	log "github.com/sirupsen/logrus"
+	"net/http"
 	"os"
 	"strconv"
 	"sync"
@@ -96,17 +98,37 @@ func checkerJob(db *sql.DB) {
 				return
 			}
 
-			//err := postgres.SetErrorStatus(db, "318d020e-ee62-4235-b167-4587dcfc788b")
-			//if err != nil {
-			//	return
-			//}
-			//log.Warnf("Статус контейнера с ошибкой измененн")
+			err := postgres.SetErrorStatus(db, uuid)
+			if err != nil {
+				return
+			}
+			log.Warnf("Статус контейнера с ошибкой %s изменен", uuid)
 
-			// TODO: запрос к API на удаление из LabManager
+			err = cancelLab(uuid)
+			if err != nil {
+				return
+			}
 		}(containerUUID)
 	}
 
 	wg.Wait()
 
 	log.Infof("Проверка контейнеров завершена")
+}
+
+// canselLab функция отправляет запрос на сам watcher API для отмены лабораторнйо из scheduler
+func cancelLab(uuid string) error {
+	resp, err := http.Get("http://127.0.0.1:8001/api/v1/cansel?uuid=" + uuid)
+	if err != nil {
+		log.Errorf("Ошибка формирования запроса: %v", err)
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		log.Errorf("Ошибка выполнения запроса, код: %d", resp.StatusCode)
+		return errors.New("ошибка выполенния запроса")
+	}
+	log.Infof("Запрос на отмену контейнера %s отправлен успешно", uuid)
+	return nil
 }
