@@ -118,7 +118,7 @@ func (lm *LabsManager) deleteLabTask(uuid string) {
 
 // sendRequest метод отправки запроса на deploy-service для удаления лабы
 func (lm *LabsManager) sendRequest(uuid string) {
-	deployServiceURL := os.Getenv("DEPLOY_SERVICE_URL")
+	deployServiceURL := os.Getenv("DEPLOY_URL")
 	if deployServiceURL == "" {
 		deployServiceURL = "http://deploy-service:8001"
 	}
