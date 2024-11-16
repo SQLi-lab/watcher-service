@@ -6,7 +6,14 @@ import (
 	_ "github.com/lib/pq"
 	log "github.com/sirupsen/logrus"
 	"os"
+	"time"
 )
+
+// ActiveLab структура активной абораторной, полученной из БД, для инициализации
+type ActiveLab struct {
+	UUID        string
+	DateDeleted string
+}
 
 // InitDatabase функция инициализирует БД и возвращает экземпляр БД
 func InitDatabase() *sql.DB {
@@ -75,6 +82,43 @@ func GetActiveContainers(db *sql.DB) ([]string, error) {
 	}
 
 	return containers, nil
+}
+
+// GetActiveLabs функция получает список всех активных лаб со статусом "Выполняется" и высчитывает дату остановки
+// возвращает массив структура ActiveLab с данными о времени удаления
+func GetActiveLabs(db *sql.DB) ([]ActiveLab, error) {
+	rows, err := db.Query("SELECT uuid, date_started, expired_seconds FROM sqli_api_lab WHERE status = 'Выполняется'")
+	if err != nil {
+		log.Errorf("Ошибка получения данных из БД: %v", err)
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var labs []ActiveLab
+
+	location, err := time.LoadLocation("Europe/Moscow")
+	if err != nil {
+		log.Printf("Ошибка загрузки часового пояса: %v", err)
+		return nil, err
+	}
+
+	for rows.Next() {
+		var uuid string
+		var dateStarted time.Time
+		var expiredSeconds int
+
+		if err := rows.Scan(&uuid, &dateStarted, &expiredSeconds); err != nil {
+			log.Errorf("Ошибка чтения данных от БД: %v", err)
+			return nil, err
+		}
+
+		deleteTime := dateStarted.Add(time.Duration(expiredSeconds) * time.Second).In(location)
+
+		labs = append(labs, ActiveLab{UUID: uuid, DateDeleted: deleteTime.Format("2006-01-02 15:04:05.999999-07:00")})
+	}
+
+	return labs, nil
 }
 
 // SetErrorStatus функция смены статуса контейнера с ошибкой

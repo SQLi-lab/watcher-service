@@ -3,6 +3,7 @@ package scheduler
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"os"
 	"sync"
 	"time"
+	"watcher/internal/postgres"
 )
 
 // RequestLab структура body запроса DELETE к deploy-service
@@ -51,6 +53,31 @@ func newLabManager() *LabsManager {
 	return &LabsManager{
 		labs: make(map[string]context.CancelFunc),
 	}
+}
+
+// initFromDB метод инициализации задач LabManager при зарпуске с уже имеющимися задачами в системе
+func (lm *LabsManager) initFromDB(db *sql.DB) {
+	log.Infof("Запуск инициализации задач LanManager из БД")
+
+	labs, err := postgres.GetActiveLabs(db)
+	if err != nil {
+		log.Errorf("Ошибка инициализации, невозможно получить список активных работ из БД: %v", err)
+		return
+	}
+
+	if len(labs) == 0 {
+		log.Infof("Задачи не были добавлены при инициализации")
+		return
+	}
+
+	for _, lab := range labs {
+		err := lm.createLabTsk(lab.UUID, lab.DateDeleted)
+		if err != nil {
+			log.Errorf("[ %s ] ошибка инициализации лабораторной")
+		}
+	}
+
+	log.Infof("Конец инициализации работ")
 }
 
 // createLabTask метод добавления отложенной задачи в планировщик

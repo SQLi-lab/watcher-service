@@ -1,7 +1,9 @@
 package checker
 
 import (
+	"bytes"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	log "github.com/sirupsen/logrus"
 	"net/http"
@@ -13,9 +15,13 @@ import (
 	"watcher/internal/postgres"
 )
 
+// WatcherCanselRequest структура запроса на удлаление к Watcher
+type WatcherCanselRequest struct {
+	UUID string `json:"uuid"`
+}
+
 // StartChecker функция запускает запуск проверки лабораторных
-func StartChecker() {
-	var db = postgres.InitDatabase()
+func StartChecker(db *sql.DB) {
 
 	log.Info("Запуск сервиса checker проверки состояний лабораторных")
 	go checkerJob(db)
@@ -39,8 +45,6 @@ func StartChecker() {
 
 // checkerJob горутина проверки лабораторных
 func checkerJob(db *sql.DB) {
-	log.Info("Запуск сервиса checker")
-
 	// канал для горутины запросов к БД
 	channelPostgres := make(chan struct {
 		containersUUID []string
@@ -81,9 +85,9 @@ func checkerJob(db *sql.DB) {
 	}
 
 	wg.Wait()
-	log.Infof("Контейнеры получены от Docker")
+	log.Infof("Получены контейнеры от Docker")
 	log.Debugf("Получены контейнеры: %v", resultDocker.containersMap)
-	log.Infof("Список активных контейнеров получен")
+	log.Infof("Получены контейнеры от Backernd Postgres")
 	log.Debugf("Получены активные контейнеры: %v", resultPostgres.containersUUID)
 
 	wg.Add(len(resultPostgres.containersUUID))
@@ -114,11 +118,18 @@ func checkerJob(db *sql.DB) {
 	wg.Wait()
 
 	log.Infof("Проверка контейнеров завершена")
+	log.Infof("Ожидание следующего запуска...")
 }
 
 // canselLab функция отправляет запрос на сам watcher API для отмены лабораторнйо из scheduler
 func cancelLab(uuid string) error {
-	resp, err := http.Get("http://127.0.0.1:8001/api/v1/cansel?uuid=" + uuid)
+	data := WatcherCanselRequest{
+		UUID: uuid,
+	}
+	dataJson, err := json.Marshal(data)
+	dataBuf := bytes.NewBuffer(dataJson)
+
+	resp, err := http.Post("http://127.0.0.1:8002/api/v1/cansel", "application/json", dataBuf)
 	if err != nil {
 		log.Errorf("Ошибка формирования запроса: %v", err)
 		return err

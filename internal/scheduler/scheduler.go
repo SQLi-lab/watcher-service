@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -18,13 +19,10 @@ type JSONResponse struct {
 	Message string `json:"message"`
 }
 
-type LabAddRequest struct {
+// LabResponse структура ответа на добавление/удаление лабы от deploy-service
+type LabResponse struct {
 	UUID string `json:"uuid"`
 	Date string `json:"date"`
-}
-
-type LabDeleteRequest struct {
-	UUID string `json:"uuid"`
 }
 
 // ServeHTTP базовый метод обработки HTTP запроса
@@ -42,7 +40,7 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // LabAddHandler хэндлер для добавления отложенной задачи
 func LabAddHandler(lm *LabsManager) Handler {
 	return func(w http.ResponseWriter, r *http.Request) error {
-		var req LabAddRequest
+		var req LabResponse
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "Некорректный формат данных", http.StatusBadRequest)
 			return err
@@ -71,7 +69,7 @@ func LabAddHandler(lm *LabsManager) Handler {
 // LabCanselHandler хэндлер для удаления лабы из отложенной задачи
 func LabCanselHandler(lm *LabsManager) Handler {
 	return func(w http.ResponseWriter, r *http.Request) error {
-		var req LabAddRequest
+		var req LabResponse
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "Некорректный формат данных", http.StatusBadRequest)
 			return err
@@ -87,8 +85,14 @@ func LabCanselHandler(lm *LabsManager) Handler {
 
 		cansel, ok := lm.labs[uuid]
 		if !ok {
-			message := fmt.Sprintf("задачи %s не существует", uuid)
-			return errors.New(message)
+			// попытка запроса к deploy-service на удаление
+			log.Warnf("[ %s ] задачи не существует, но пробую сделать запрос на удаление к deploy-service", uuid)
+			lm.sendRequest(uuid)
+			json.NewEncoder(w).Encode(JSONResponse{
+				Success: true,
+				Message: fmt.Sprintf("задачи %s не существует в LabManager", uuid),
+			})
+			return nil
 		}
 
 		// вызов отмены задачи
@@ -103,10 +107,9 @@ func LabCanselHandler(lm *LabsManager) Handler {
 }
 
 // StartSchedulerServer функция запуска API сервера
-func StartSchedulerServer() {
+func StartSchedulerServer(db *sql.DB) {
 	labManger := newLabManager()
-
-	// TODO: запрос к бд на дамп активных лаб в labManager
+	labManger.initFromDB(db)
 
 	r := chi.NewRouter()
 	r.Route("/api/v1", func(r chi.Router) {
