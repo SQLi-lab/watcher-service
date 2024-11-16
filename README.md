@@ -30,7 +30,7 @@ POST /api/v1/cansel
 
 
 ## Переменные окружения
-- `PORT`: порт сервера API; default `8002`
+- `WATCHER_PORT`: порт сервера API; default `8002`
 - `DEPLOY_SERVICE_URL`: адрес deploy-service; default http://deploy-service:8001
 - `DEPLOY_SECRET`: секрет для общения с deploy-service
 - `CHECKER_TIMEOUT`: тамаут работы сервиса checker в секундах; default `60`

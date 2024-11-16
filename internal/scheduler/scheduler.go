@@ -117,7 +117,7 @@ func StartSchedulerServer(db *sql.DB) {
 		r.Method("POST", "/cansel", LabCanselHandler(labManger))
 	})
 
-	port := os.Getenv("PORT")
+	port := os.Getenv("WATCHER_PORT")
 	if port == "" {
 		port = "8002"
 	}
