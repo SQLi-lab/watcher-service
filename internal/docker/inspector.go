@@ -8,7 +8,7 @@ import (
 )
 
 func GetDockerContainers() (map[string]string, error) {
-	log.Info("Получение статусов контейнеров в системе")
+	log.Info("Получение статусов контейнеров от Docker")
 
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {

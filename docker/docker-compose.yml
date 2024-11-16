@@ -3,6 +3,12 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile
-    # TODO: доделать
+    container_name: watcher
+    restart: always
+    ports:
+      - "8002:8002"
+    privileged: true
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+    env_file:
+      - ../.env.example
