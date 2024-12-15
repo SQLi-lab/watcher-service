@@ -10,7 +10,13 @@ services:
     ports:
       - "8002:8002"
     privileged: true
+    networks:
+      - sqli_lab
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     env_file:
       - ../.env.example
+
+networks:
+  sqli_lab:
+    external: true
