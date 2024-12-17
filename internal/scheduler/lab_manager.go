@@ -61,6 +61,10 @@ func (lm *LabsManager) initFromDB(db *sql.DB) {
 
 	labs, err := postgres.GetActiveLabs(db)
 	if err != nil {
+		db = postgres.InitDatabase()
+		labs, err = postgres.GetActiveLabs(db)
+	}
+	if err != nil {
 		log.Errorf("Ошибка инициализации, невозможно получить список активных работ из БД: %v", err)
 		return
 	}
