@@ -63,6 +63,10 @@ func checkerJob(db *sql.DB) {
 	go func(db *sql.DB) {
 		defer wg.Done()
 		data, postgresErr := postgres.GetActiveContainers(db)
+		if postgresErr != nil {
+			db = postgres.InitDatabase()
+			data, postgresErr = postgres.GetActiveContainers(db)
+		}
 		channelPostgres <- struct {
 			containersUUID []string
 			err            error
@@ -81,6 +85,7 @@ func checkerJob(db *sql.DB) {
 	// собираем полученные данные из горутин
 	resultPostgres, resultDocker := <-channelPostgres, <-channelDocker
 	if resultPostgres.err != nil || resultDocker.err != nil {
+		log.Errorf("Ошибки при получении информации: %s, %s", resultPostgres.err, resultDocker.err)
 		return
 	}
 
@@ -103,6 +108,10 @@ func checkerJob(db *sql.DB) {
 			}
 
 			err := postgres.SetErrorStatus(db, uuid)
+			if err != nil {
+				db = postgres.InitDatabase()
+				err = postgres.SetErrorStatus(db, uuid)
+			}
 			if err != nil {
 				return
 			}
